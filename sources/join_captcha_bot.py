@@ -13,9 +13,9 @@ Author:
 Creation date:
     09/09/2018
 Last modified date:
-    25/12/2020
+    26/01/2021
 Version:
-    1.15.5
+    1.15.6
 '''
 
 ###############################################################################
@@ -710,6 +710,10 @@ def msg_nocmd(update: Update, context: CallbackContext):
     captcha_enable = get_chat_config(chat_id, "Enabled")
     if not captcha_enable:
         return
+    # Ignore if captcha mode is "button"
+    captcha_chars_mode = get_chat_config(chat_id, "Captcha_Chars_Mode")
+    if captcha_chars_mode not in { "nums", "hex", "ascii" }:
+        return
     # If message doesnt has text, check for caption fields (for no text msgs and resended ones)
     msg_text = getattr(update_msg, "text", None)
     if msg_text is None:
@@ -764,7 +768,7 @@ def msg_nocmd(update: Update, context: CallbackContext):
         new_users[chat_id][user_id]["msg_to_rm"].clear()
         del new_users[chat_id][user_id]
         # Remove user captcha numbers message
-        tlg_delete_msg(bot, chat_id, update_msg.message_id)
+        tlg_delete_msg(bot, chat_id, msg_id)
         bot_msg = TEXT[lang]["CAPTCHA_SOLVED"].format(user_name)
         # Send and set Bot to auto-remove captcha solved message too after 5mins
         tlg_send_selfdestruct_msg_in(bot, chat_id, bot_msg, 5)
@@ -795,11 +799,13 @@ def msg_nocmd(update: Update, context: CallbackContext):
         # Check if the message has 4 chars
         if len(msg_text) == 4:
             sent_msg_id = tlg_send_selfdestruct_msg(bot, chat_id, TEXT[lang]["CAPTCHA_INCORRECT_0"])
+            new_users[chat_id][user_id]["msg_to_rm"].append(msg_id)
             new_users[chat_id][user_id]["msg_to_rm"].append(sent_msg_id)
         else:
             # Check if the message was just a 4 numbers msg
             if is_int(msg_text):
                 sent_msg_id = tlg_send_selfdestruct_msg(bot, chat_id, TEXT[lang]["CAPTCHA_INCORRECT_1"])
+                new_users[chat_id][user_id]["msg_to_rm"].append(msg_id)
                 new_users[chat_id][user_id]["msg_to_rm"].append(sent_msg_id)
             else:
                 # Check if the message contains any URL
